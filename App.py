@@ -30,7 +30,7 @@ class flightseatdata:
         self.cabin = ['Economy', 'Premium Economy', 'Business', 'First']
         self.reason = {}
         self.validate = Validation()
-        self.df = self.read_csv(file)
+        self.df = self.import_csv(file)
         self.dfo = self.df.copy()
 
 
@@ -48,20 +48,20 @@ class flightseatdata:
 
 
     def processmobile(self):
-        boolmobilevalidate = self.df['Mobile_phone'].astype(str).apply(lambda x: validate.mobilevalidate(x))
+        boolmobilevalidate = self.df['Mobile_phone'].astype(str).apply(lambda x: self.validate.mobilevalidate(x))
         l = list(self.df[np.logical_not(boolmobilevalidate)].index)
         if len(l) > 0:
-            self.validation_error_log(l, 'Mobile phone value corrupted;')
-        self.df = self.df[boolmobilevalidate]
+            self.validation_error_log(l, 'Mobile phone value corrupted,')
+        #self.df = self.df[boolmobilevalidate]
 
 
     def processdate(self):
         booldatevalidate = pd.to_datetime(self.df['Travel_date'], utc=True).dt.strftime('%Y-%m-%d %H:%M:%S') >= pd.to_datetime(
-        self.df['Ticketing_date'], utc=True).dt.strftime('%Y-%m-%d %H:%M:%S')
+            self.df['Ticketing_date'], utc=True).dt.strftime('%Y-%m-%d %H:%M:%S')
         l = list(self.df[np.logical_not(booldatevalidate)].index)
         if len(l) > 0:
-            self.validation_error_log(l, 'Travel date value corrupted;')
-        self.df = self.df[booldatevalidate]
+            self.validation_error_log(l, 'Travel date value corrupted,')
+        #self.df = self.df[booldatevalidate]
 
 
 
@@ -69,36 +69,37 @@ class flightseatdata:
         boolemailvalidate = self.df['Email'].astype(str).apply(lambda x: validate_email(x))
         l = list(self.df[np.logical_not(boolemailvalidate)].index)
         if len(l) > 0:
-            self.validation_error_log(l, 'Email value corrupted;')
-        self.df = self.df[boolemailvalidate]
+            self.validation_error_log(l, 'Email value corrupted,')
+        #self.df = self.df[boolemailvalidate]
 
 
     def processcabin(self):
-        boolcabinvalidate = self.df['Booked_cabin'].apply(lambda x: str(x) in cabin)
+        boolcabinvalidate = self.df['Booked_cabin'].apply(lambda x: str(x) in self.cabin)
         l = list(self.df[np.logical_not(boolcabinvalidate)].index)
         if len(l) > 0:
-            self.validation_error_log(l, 'Booked cabin value corrupted;')
-        self.df = self.df[boolcabinvalidate]
+            self.validation_error_log(l, 'Booked cabin value corrupted,')
+        #self.df = self.df[boolcabinvalidate]
 
     def processpnr(self):
         boolpnrvalidate = self.df['PNR'].astype(str).apply(lambda x: self.validate.pnrvalidate(x))
         l = list(self.df[np.logical_not(boolpnrvalidate)].index)
         if len(l) > 0:
-            self.validation_error_log(l, 'PNR corrupted;')
+            self.validation_error_log(l, 'PNR corrupted,')
 
-        return self.df[boolpnrvalidate]
+        #self.df = self.df[boolpnrvalidate]
 
 
     def process(self):
-        self.processemail()
-        self.processdate()
-        self.processmobile()
         self.processpnr()
+        self.processmobile()
+        self.processdate()
+        self.processemail()
 
+    @staticmethod
     def code(el):
         el = str(el)
         if el >= 'A' and el <= 'E':
-            return "OFFER_20"f
+            return "OFFER_20"
         elif el >= 'F' and el <= 'K':
             return "OFFER_30"
         elif el >= 'L' and el <= 'R':
@@ -106,28 +107,18 @@ class flightseatdata:
         else:
             return None
 
+
     def addfare_class(self):
-        self.df['Discount_code'] = self.df['Fare_class'].apply(self.code)
+        self.df['Discount_code'] = self.df['Fare_class'].apply(flightseatdata.code)
         return self.df.copy()
 
 
-
-    def exportvalidatedcsv(self):
-
-    def exportinvalidatedcsv(self):
-
-
-
-
-
-
-
-
-
-if __name__ == 'main':
+if __name__ == '__main__':
     f_instance=flightseatdata("input.csv")
     f_instance.process()
     validated = f_instance.addfare_class()
+    column_validated = [a for a in list(validated.index) if a not in list(f_instance.reason.keys())]
+    validated = validated.loc[column_validated]
     invalidated = f_instance.dfo.loc[list(f_instance.reason.keys()), :]
     invalidated["validation_failure_reason"] = f_instance.reason
     invalidated["validation_failure_reason"].replace(f_instance.reason, inplace=True)
